@@ -47,6 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="save folder (default: ~/Downloads)",
     )
     parser.add_argument(
+        "--name",
+        metavar="NAME",
+        help="output filename; the selected format extension is added automatically",
+    )
+    parser.add_argument(
         "--no-timestamps",
         action="store_true",
         help="omit paragraph timestamps from the saved transcript",
@@ -84,6 +89,7 @@ def run_headless(args: argparse.Namespace) -> int:
             args.output_dir or default_output_directory(),
             args.output_format,
             timestamps,
+            args.name,
         )
     except (InvalidYouTubeURL, TranscriptFetchError, OSError) as error:
         print(f"transcript-agent: {error}", file=sys.stderr)
@@ -107,6 +113,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         output_directory=args.output_dir or default_output_directory(),
         output_format=args.output_format,
         include_timestamps=not args.no_timestamps,
+        output_name=args.name,
     )
     app.run()
 

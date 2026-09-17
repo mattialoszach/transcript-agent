@@ -50,6 +50,7 @@ The reader shows all essential controls on screen. It also supports familiar Vim
 | `Ctrl+d` / `Ctrl+u` | Page down / up |
 | `g` / `G` | Jump to top / bottom |
 | `s` | Save |
+| `m` | Name the saved file |
 | `o` | Choose a save folder |
 | `f` | Switch Markdown / plain text |
 | `t` | Toggle timestamps |
@@ -58,7 +59,7 @@ The reader shows all essential controls on screen. It also supports familiar Vim
 | `?` | Show all shortcuts |
 | `q` | Quit |
 
-Transcripts save to `~/Downloads` by default (or the home folder if Downloads does not exist). Filenames contain the video title and ID. Existing files are never silently overwritten, and saving identical content twice reuses the existing file.
+Transcripts save to `~/Downloads` by default (or the home folder if Downloads does not exist). The video title is used as the filename by default; press `m` to choose a name before saving. Existing files are never silently overwritten, and saving identical content twice reuses the existing file.
 
 Supported inputs include regular watch links, `youtu.be` links, Shorts, live links, embed links, YouTube Music links, and bare 11-character video IDs.
 
@@ -74,6 +75,12 @@ Choose text output and a folder:
 
 ```bash
 yt-transcript VIDEO_URL --no-ui --format txt --output-dir ./notes
+```
+
+Choose the output filename directly (the extension is added automatically):
+
+```bash
+yt-transcript VIDEO_URL --no-ui --name interview-notes
 ```
 
 Pipe a transcript into another command:

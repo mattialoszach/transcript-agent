@@ -25,7 +25,7 @@ from textual.widgets import (
 
 from transcript_agent.formatting import OutputFormat, build_paragraphs, timestamp
 from transcript_agent.models import TranscriptDocument
-from transcript_agent.storage import SaveResult, save_document
+from transcript_agent.storage import SaveResult, save_document, transcript_filename
 from transcript_agent.youtube import (
     InvalidYouTubeURL,
     TranscriptFetcher,
@@ -132,7 +132,8 @@ class HomeScreen(Screen[None]):
 
     def _show_document(self, document: TranscriptDocument, source: str) -> None:
         self._finish_fetch("Ready")
-        self.app.push_screen(ViewerScreen(document, source))
+        app = cast("TranscriptAgentApp", self.app)
+        self.app.push_screen(ViewerScreen(document, source, app.output_name))
 
 
 class TranscriptView(Static, can_focus=True):
@@ -154,6 +155,7 @@ class ViewerScreen(Screen[None]):
         Binding("g", "top", "Top", key_display="g"),
         Binding("G", "bottom", "Bottom", key_display="G"),
         Binding("s", "save", "Save"),
+        Binding("m", "name", "Name"),
         Binding("o", "folder", "Folder"),
         Binding("f", "format", "Format"),
         Binding("t", "timestamps", "Timestamps"),
@@ -163,10 +165,16 @@ class ViewerScreen(Screen[None]):
         Binding("q", "app.quit", "Quit"),
     )
 
-    def __init__(self, document: TranscriptDocument, source: str) -> None:
+    def __init__(
+        self,
+        document: TranscriptDocument,
+        source: str,
+        output_name: str | None = None,
+    ) -> None:
         super().__init__()
         self.document = document
         self.source = source
+        self.output_name = output_name
 
     def compose(self) -> ComposeResult:
         app = cast("TranscriptAgentApp", self.app)
@@ -183,6 +191,7 @@ class ViewerScreen(Screen[None]):
                 yield TranscriptView(self._reader_text(), id="transcript")
             with Horizontal(id="toolbar"):
                 yield Button("Save  S", id="save", variant="primary")
+                yield Button("Name  M", id="name")
                 yield Button("Folder  O", id="folder")
                 yield Button(self._format_label(app.output_format), id="format")
                 yield Button(
@@ -218,7 +227,10 @@ class ViewerScreen(Screen[None]):
 
     def _destination_text(self) -> str:
         app = cast("TranscriptAgentApp", self.app)
-        return f"Save to  {app.output_directory}"
+        filename = transcript_filename(
+            self.document, app.output_format, self.output_name
+        )
+        return f"Save to  {app.output_directory / filename}"
 
     def _restore_reader_focus(self) -> None:
         self.query_one("#transcript", TranscriptView).focus()
@@ -253,12 +265,26 @@ class ViewerScreen(Screen[None]):
                 app.output_directory,
                 app.output_format,
                 app.include_timestamps,
+                self.output_name,
             )
         except OSError as error:
             status.update(Text(str(error), style="bold #ff6b6b"))
             self.notify(str(error), severity="error", timeout=5)
             return
         self._show_save_result(result)
+        self._restore_reader_focus()
+
+    def action_name(self) -> None:
+        app = cast("TranscriptAgentApp", self.app)
+        suggested = Path(
+            transcript_filename(self.document, app.output_format, self.output_name)
+        ).stem
+        self.app.push_screen(NamePicker(suggested), self._name_selected)
+
+    def _name_selected(self, name: str | None) -> None:
+        if name is not None:
+            self.output_name = name
+            self.query_one("#save-status", Static).update(self._destination_text())
         self._restore_reader_focus()
 
     def _show_save_result(self, result: SaveResult) -> None:
@@ -313,6 +339,7 @@ class ViewerScreen(Screen[None]):
     def button_pressed(self, event: Button.Pressed) -> None:
         actions = {
             "save": self.action_save,
+            "name": self.action_name,
             "folder": self.action_folder,
             "format": self.action_format,
             "timestamps": self.action_timestamps,
@@ -380,6 +407,53 @@ class FolderPicker(ModalScreen[Path | None]):
         self.dismiss(None)
 
 
+class NamePicker(ModalScreen[str | None]):
+    """Prompt for the saved transcript's filename."""
+
+    BINDINGS = (Binding("escape", "cancel", "Cancel"),)
+
+    def __init__(self, suggested: str) -> None:
+        super().__init__()
+        self.suggested = suggested
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="name-dialog"):
+            yield Label("Name the transcript", id="dialog-title")
+            yield Input(self.suggested, id="name-input", select_on_focus=False)
+            yield Static("The file extension is added automatically.", id="name-hint")
+            with Horizontal(id="dialog-buttons"):
+                yield Button("Cancel  Esc", id="cancel")
+                yield Button("Use this name", id="choose", variant="primary")
+
+    def on_mount(self) -> None:
+        field = self.query_one("#name-input", Input)
+        field.focus()
+        field.action_end()
+
+    @on(Input.Submitted, "#name-input")
+    def name_submitted(self) -> None:
+        self.action_choose()
+
+    @on(Button.Pressed)
+    def dialog_button(self, event: Button.Pressed) -> None:
+        if event.button.id == "choose":
+            self.action_choose()
+        elif event.button.id == "cancel":
+            self.action_cancel()
+
+    def action_choose(self) -> None:
+        name = self.query_one("#name-input", Input).value.strip()
+        if not name:
+            self.query_one("#name-hint", Static).update(
+                Text("Enter a filename.", style="bold #ff6b6b")
+            )
+            return
+        self.dismiss(name)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class HelpScreen(ModalScreen[None]):
     BINDINGS = (
         Binding("escape", "close", "Close"),
@@ -394,9 +468,10 @@ class HelpScreen(ModalScreen[None]):
                 "j / k or ↑ / ↓   scroll\n"
                 "Ctrl+d / Ctrl+u   page down / up\n"
                 "g / G             top / bottom\n\n"
-                "s   save           o   choose folder\n"
-                "f   MD / TXT       t   toggle timestamps\n"
-                "r   retry          n   new URL\n"
+                "s   save           m   name file\n"
+                "o   choose folder  f   MD / TXT\n"
+                "t   timestamps     r   retry\n"
+                "n   new URL\n"
                 "q   quit           ?   close help",
                 id="help-copy",
             )
@@ -601,7 +676,7 @@ class TranscriptAgentApp(App[None]):
         text-overflow: ellipsis;
     }
 
-    FolderPicker, HelpScreen {
+    FolderPicker, NamePicker, HelpScreen {
         align: center middle;
         background: #05080ca8;
     }
@@ -613,6 +688,21 @@ class TranscriptAgentApp(App[None]):
         padding: 1 2;
         background: $panel;
         border: round #3a5064;
+    }
+
+    #name-dialog {
+        width: 64;
+        max-width: 92%;
+        height: auto;
+        padding: 1 2;
+        background: $panel;
+        border: round #3a5064;
+    }
+
+    #name-hint {
+        height: 2;
+        padding-top: 1;
+        color: $muted;
     }
 
     #dialog-title {
@@ -671,6 +761,7 @@ class TranscriptAgentApp(App[None]):
         output_directory: Path | None = None,
         output_format: OutputFormat = "md",
         include_timestamps: bool = True,
+        output_name: str | None = None,
         fetcher: TranscriptFetcher | None = None,
     ) -> None:
         super().__init__()
@@ -681,6 +772,7 @@ class TranscriptAgentApp(App[None]):
         self.output_directory = output_directory or default_output_directory()
         self.output_format = output_format
         self.include_timestamps = include_timestamps
+        self.output_name = output_name
         self.fetcher = fetcher or TranscriptFetcher()
         self.home_screen = HomeScreen(initial_url)
 

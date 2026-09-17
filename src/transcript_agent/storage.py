@@ -9,7 +9,8 @@ from pathlib import Path
 from transcript_agent.formatting import OutputFormat, format_document
 from transcript_agent.models import TranscriptDocument
 
-INVALID_FILENAME = re.compile(r"[<>:\"/\\|?*\x00-\x1f]")
+INVALID_FILENAME = re.compile(r"[<>\"?*\x00-\x1f]")
+FILENAME_SEPARATOR = re.compile(r"[:/\\|]+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,17 +25,28 @@ def default_output_directory() -> Path:
 
 
 def safe_filename(title: str, fallback: str, max_length: int = 120) -> str:
-    cleaned = INVALID_FILENAME.sub("-", title)
+    cleaned = INVALID_FILENAME.sub("", title)
+    cleaned = FILENAME_SEPARATOR.sub(" - ", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" .-")
     cleaned = cleaned[:max_length].rstrip(" .-")
     return cleaned or fallback
 
 
 def transcript_filename(
-    document: TranscriptDocument, output_format: OutputFormat
+    document: TranscriptDocument,
+    output_format: OutputFormat,
+    name: str | None = None,
 ) -> str:
-    stem = safe_filename(document.title, f"YouTube transcript {document.video_id}")
-    return f"{stem} [{document.video_id}].{output_format}"
+    requested = (name or "").strip()
+    for extension in (".md", ".txt"):
+        if requested.lower().endswith(extension):
+            requested = requested[: -len(extension)]
+            break
+    stem = safe_filename(
+        requested or document.title,
+        f"YouTube transcript {document.video_id}",
+    )
+    return f"{stem}.{output_format}"
 
 
 def save_document(
@@ -42,12 +54,13 @@ def save_document(
     directory: Path,
     output_format: OutputFormat = "md",
     include_timestamps: bool = True,
+    name: str | None = None,
 ) -> SaveResult:
     """Save without overwriting unrelated content or duplicating identical saves."""
     directory = directory.expanduser().resolve()
     directory.mkdir(parents=True, exist_ok=True)
     content = format_document(document, output_format, include_timestamps)
-    preferred = directory / transcript_filename(document, output_format)
+    preferred = directory / transcript_filename(document, output_format, name)
 
     candidate = preferred
     suffix = 2

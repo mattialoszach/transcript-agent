@@ -5,6 +5,7 @@ import asyncio
 from transcript_agent.app import (
     HelpScreen,
     HomeScreen,
+    NamePicker,
     TranscriptAgentApp,
     ViewerScreen,
 )
@@ -58,6 +59,28 @@ def test_viewer_updates_text_when_timestamps_are_toggled(document) -> None:
             await pilot.press("t")
             await pilot.pause()
             assert "00:00" not in str(transcript.render())
+
+    asyncio.run(scenario())
+
+
+def test_viewer_allows_direct_naming(tmp_path, document) -> None:
+    async def scenario() -> None:
+        app = TranscriptAgentApp(output_directory=tmp_path)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            app.push_screen(ViewerScreen(document, document.source_url))
+            await pilot.pause()
+
+            await pilot.press("m")
+            await pilot.pause()
+            assert isinstance(app.screen, NamePicker)
+            name_input = app.screen.query_one("#name-input")
+            name_input.value = "Project interview"
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.press("s")
+            await pilot.pause()
+            assert (tmp_path / "Project interview.md").is_file()
 
     asyncio.run(scenario())
 

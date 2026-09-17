@@ -34,3 +34,13 @@ def test_no_ui_saves_document(monkeypatch, capsys, tmp_path, document) -> None:
     assert cli.run_headless(args) == 0
     assert "Saved:" in capsys.readouterr().out
     assert len(list(tmp_path.glob("*.txt"))) == 1
+
+
+def test_no_ui_accepts_custom_filename(monkeypatch, tmp_path, document) -> None:
+    FakeFetcher.document = document
+    monkeypatch.setattr(cli, "TranscriptFetcher", FakeFetcher)
+    args = cli.build_parser().parse_args(
+        ["dQw4w9WgXcQ", "--no-ui", "--output-dir", str(tmp_path), "--name", "Notes"]
+    )
+    assert cli.run_headless(args) == 0
+    assert (tmp_path / "Notes.md").is_file()
