@@ -99,7 +99,7 @@ Markdown output contains:
 - Caption language and whether the track is creator-provided or generated
 - Readable paragraphs with timestamps linked to the matching moment in the video
 
-Plain text contains the same metadata without Markdown syntax. Timestamps can be disabled in the UI or with `--no-timestamps`.
+Plain text contains the same metadata without Markdown syntax. Timestamps can be disabled in the UI or with `--no-timestamps`; without timestamps, the transcript is rendered as continuous text without empty lines between caption paragraphs.
 
 ## How caption selection works
 

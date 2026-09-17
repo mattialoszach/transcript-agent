@@ -85,11 +85,13 @@ def format_document(
             f"{document.language} (`{document.language_code}`) · {_caption_kind(document)}"
         )
         lines = [f"# {document.title}", "", metadata, "", "## Transcript", ""]
+        if not include_timestamps:
+            lines.append(" ".join(paragraph.text for paragraph in paragraphs))
+            return "\n".join(lines).rstrip() + "\n"
         for paragraph in paragraphs:
-            if include_timestamps:
-                second = int(paragraph.start)
-                link = f"{document.source_url}&t={second}s"
-                lines.append(f"[{timestamp(paragraph.start)}]({link})  ")
+            second = int(paragraph.start)
+            link = f"{document.source_url}&t={second}s"
+            lines.append(f"[{timestamp(paragraph.start)}]({link})  ")
             lines.extend((paragraph.text, ""))
         return "\n".join(lines).rstrip() + "\n"
 
@@ -103,7 +105,9 @@ def format_document(
         f"Captions: {_caption_kind(document)}",
         "",
     ]
+    if not include_timestamps:
+        lines.append(" ".join(paragraph.text for paragraph in paragraphs))
+        return "\n".join(lines).rstrip() + "\n"
     for paragraph in paragraphs:
-        prefix = f"[{timestamp(paragraph.start)}] " if include_timestamps else ""
-        lines.extend((f"{prefix}{paragraph.text}", ""))
+        lines.extend((f"[{timestamp(paragraph.start)}] {paragraph.text}", ""))
     return "\n".join(lines).rstrip() + "\n"

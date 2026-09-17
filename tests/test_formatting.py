@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from transcript_agent.formatting import build_paragraphs, format_document, timestamp
-from transcript_agent.models import TranscriptSnippet
+from transcript_agent.models import TranscriptDocument, TranscriptSnippet
 
 
 def test_timestamp_formats_short_and_long_times() -> None:
@@ -35,6 +35,29 @@ def test_plain_text_can_omit_timestamps(document) -> None:
     assert "Source: https://www.youtube.com/watch?v=dQw4w9WgXcQ" in output
     assert "[00:00]" not in output
     assert "Hello from the first caption." in output
+
+
+def test_timestamp_free_output_has_no_paragraph_gaps(document) -> None:
+    long_document = TranscriptDocument(
+        video_id=document.video_id,
+        title=document.title,
+        source_url=document.source_url,
+        language=document.language,
+        language_code=document.language_code,
+        is_generated=document.is_generated,
+        snippets=(
+            TranscriptSnippet("First sentence. " * 40, 0, 1),
+            TranscriptSnippet("Second sentence. " * 40, 10, 1),
+        ),
+    )
+
+    for output_format in ("md", "txt"):
+        output = format_document(
+            long_document, output_format, include_timestamps=False
+        )
+        transcript = output.split("\n\n")[-1]
+        assert "\n" not in transcript.rstrip("\n")
+        assert "sentence. Second" in transcript
 
 
 def test_format_rejects_unknown_format(document) -> None:

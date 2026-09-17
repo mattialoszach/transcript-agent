@@ -45,6 +45,23 @@ def test_viewer_shortcuts_toggle_options_and_save(tmp_path, document) -> None:
     asyncio.run(scenario())
 
 
+def test_viewer_updates_text_when_timestamps_are_toggled(document) -> None:
+    async def scenario() -> None:
+        app = TranscriptAgentApp()
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            app.push_screen(ViewerScreen(document, document.source_url))
+            await pilot.pause()
+
+            transcript = app.screen.query_one("#transcript")
+            assert "00:00" in str(transcript.render())
+            await pilot.press("t")
+            await pilot.pause()
+            assert "00:00" not in str(transcript.render())
+
+    asyncio.run(scenario())
+
+
 def test_initial_url_fetch_retry_and_new_flow(tmp_path, document) -> None:
     class FakeFetcher:
         def __init__(self) -> None:

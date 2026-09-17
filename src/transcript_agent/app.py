@@ -197,12 +197,14 @@ class ViewerScreen(Screen[None]):
         self.query_one("#transcript", TranscriptView).focus()
 
     def _reader_text(self) -> Text:
+        app = cast("TranscriptAgentApp", self.app)
         text = Text()
         for index, paragraph in enumerate(build_paragraphs(self.document.snippets)):
             if index:
-                text.append("\n\n")
-            text.append(timestamp(paragraph.start), style="bold #5eead4")
-            text.append("  ")
+                text.append("\n\n" if app.include_timestamps else " ")
+            if app.include_timestamps:
+                text.append(timestamp(paragraph.start), style="bold #5eead4")
+                text.append("  ")
             text.append(paragraph.text, style="#e7edf4")
         return text
 
@@ -290,6 +292,7 @@ class ViewerScreen(Screen[None]):
         self.query_one("#timestamps", Button).label = self._timestamp_label(
             app.include_timestamps
         )
+        self.query_one("#transcript", TranscriptView).update(self._reader_text())
         self._restore_reader_focus()
 
     def action_retry(self) -> None:
