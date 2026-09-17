@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "youtube-transcript-agent"
+version = "1.0.0"
+description = "A fast, keyboard-first terminal app for saving YouTube transcripts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Mattia Loszach" }]
+keywords = ["youtube", "transcript", "captions", "cli", "tui"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Multimedia :: Video",
+  "Topic :: Text Processing",
+]
+dependencies = [
+  "textual>=8.2,<9",
+  "youtube-transcript-api>=1.2.4,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+  "ruff>=0.16,<1",
+]
+
+[project.scripts]
+transcript-agent = "transcript_agent.cli:main"
+yt-transcript = "transcript_agent.cli:main"
+
+[project.urls]
+Repository = "https://github.com/mattialoszach/transcript-agent"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/transcript_agent"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["transcript_agent"]
